@@ -1,0 +1,22 @@
+<?php
+
+return [
+    'yashi' => [
+        'database' => [
+            'host' => '127.0.0.1',
+            'user' => 'root',
+            'password' => 'foo',
+            'databaseName' => 'mydb',
+        ],
+        'ftp' => [
+            'host' => 'ftp.foo.com',
+            'user' => 'foo',
+            'password' => 'bar',
+            'path' => 'mypath/'
+        ],
+        'files' => [
+            'path' => './files/foo/',
+            'advertiserFilename' => 'Foo_Advertisers.csv'
+        ]
+    ]
+];

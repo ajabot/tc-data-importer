@@ -53,8 +53,15 @@ class CampaignService
         int $viewedCount100
     ) {
         $statement = $this->connection->prepare(
-            'REPLACE INTO zz__yashi_cgn_data(campaign_id, log_date, impression_count, click_count, 25viewed_count, 50viewed_count, 75viewed_count, 100viewed_count)
-            VALUES (:campaign_id, :log_date, :impression_count, :click_count, :25viewed_count, :50viewed_count, :75viewed_count, :100viewed_count)'
+            'INSERT INTO zz__yashi_cgn_data(campaign_id, log_date, impression_count, click_count, 25viewed_count, 50viewed_count, 75viewed_count, 100viewed_count)
+            VALUES (:campaign_id, :log_date, :impression_count, :click_count, :25viewed_count, :50viewed_count, :75viewed_count, :100viewed_count)
+            ON DUPLICATE KEY UPDATE
+            impression_count = impression_count + VALUES(impression_count),
+            click_count = click_count + VALUES(click_count),
+            25viewed_count = 25viewed_count + VALUES(25viewed_count),
+            50viewed_count = 50viewed_count + VALUES(50viewed_count),
+            75viewed_count = 75viewed_count + VALUES(75viewed_count),
+            100viewed_count = 100viewed_count + VALUES(100viewed_count)'
         );
 
         $statement->execute([

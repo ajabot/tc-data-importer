@@ -57,12 +57,20 @@ class CSVImportService
 
 		//Using a transaction so we can rollback everything if needed
 		$this->connection->beginTransaction();
+		$dataCleaned = false;
 
 		while (($data = fgetcsv($handle)) !== FALSE) {
 			if (!array_key_exists($data[$dataMapping['Advertiser ID']], $this->advertisers)) {
 				continue;
 			}
 	
+			//to avoid issues if we re-run the same file
+			if (!$dataCleaned) {
+				$this->campaignService->cleanDataForDay($data[$dataMapping['Date']]);
+				$this->orderService->cleanDataForDay($data[$dataMapping['Date']]);
+				$dataCleaned = true;
+			}
+
 			try {
 				$campaignId = $this->saveCampaignDataFromRow($data, $dataMapping);
 				$orderId = $this->saveOrderDataFromRow($data, $dataMapping, $campaignId);
@@ -88,16 +96,12 @@ class CSVImportService
 			if (!in_array($creativeId, $processedCreativeIds)) {
 				$processedCreativeIds[] = $creativeId;
 			}
-
-			$campaignsSums = $this->updateSumsFromRow($data, $dataMapping, $campaignsSums, $campaignId);
-			$creativesSums = $this->updateSumsFromRow($data, $dataMapping, $creativesSums, $creativeId);
-			$creativeToCampaignMapping[$creativeId] = $campaignId;
 		}
 
 		fclose($handle);
 		try {
 			$this->assertNumberOfEntity(count($processedCampaignIds), count($processedOrderIds), count($processedCreativeIds));
-			$this->assertSums($campaignsSums, $creativesSums, $creativeToCampaignMapping);
+			$this->assertSums();
 		} catch (\Exception $e) {
 			$this->connection->rollBack();
 			throw $e;
@@ -235,37 +239,14 @@ class CSVImportService
 	/**
 	 * @throws \Exception 
 	 */
-	private function assertSums(array $campaignsSums, array $creativesSums, array $entityMapping)
+	private function assertSums()
 	{
-		$creativesSumsByCampaign = [];
-		foreach ($creativesSums as $creativeId => $creativeSums) {
-			if (!isset($creativesSumsByCampaign[$entityMapping[$creativeId]]) || !is_array($creativesSumsByCampaign[$entityMapping[$creativeId]])) {
-				$creativesSumsByCampaign[$entityMapping[$creativeId]] = [
-					'impression_count' => $creativeSums['impression_count'],
-					'click_count' => $creativeSums['click_count'],
-					'25viewed_count' => $creativeSums['25viewed_count'],
-					'50viewed_count' => $creativeSums['50viewed_count'],
-					'75viewed_count' => $creativeSums['75viewed_count'],
-					'100viewed_coun' => $creativeSums['100viewed_coun'],
-				];
-			} else {
-				$creativesSumsByCampaign[$entityMapping[$creativeId]] = [
-					'impression_count' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['impression_count'] + $creativeSums['impression_count'],
-					'click_count' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['click_count'] + $creativeSums['click_count'],
-					'25viewed_count' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['25viewed_count'] + $creativeSums['25viewed_count'],
-					'50viewed_count' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['50viewed_count'] + $creativeSums['50viewed_count'],
-					'75viewed_count' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['75viewed_count'] + $creativeSums['75viewed_count'],
-					'100viewed_coun' => $creativesSumsByCampaign[$entityMapping[$creativeId]]['100viewed_count'] + $creativeSums['100viewed_coun'],
-				];
-			}
-		}
+		$campaignsSums = $this->campaignService->getSumsByCampaigns();
+		$ordersSums = $this->orderService->getSumsByCampaigns();
+		$creativesSums = $this->creativeService->getSumsByCampaigns();
 
-		foreach ($campaignsSums as $campaignId => $campaignSums) {
-			foreach ($campaignSums as $column => $dataSum) {
-				if ($creativesSumsByCampaign[$campaignId][$column] !== $dataSum) {
-					throw new \Exception("Data count doesn't make sense");
-				}
-			}
+		if ($campaignsSums !== $ordersSums || $campaignsSums !== $creativesSums) {
+			throw new \Exception("Data count doesn't make sense");
 		}
 	}
 }

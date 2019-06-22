@@ -75,4 +75,39 @@ class CampaignService
             '100viewed_count' => $viewedCount100,
         ]);
     }
+
+    /**
+	 * @throws \Exception 
+	 */
+    public function cleanDataForDay(string $day)
+    {
+        $statement = $this->connection->prepare(
+            "DELETE FROM zz__yashi_cgn_data
+            WHERE log_date = :log_date"
+        );
+
+        $statement->execute([
+            'log_date' => strtotime($day)
+        ]);
+    }
+
+    public function getSumsByCampaigns(): array
+	{
+		$statement = $this->connection->prepare(
+			'SELECT
+			campaign_id,
+			sum(impression_count),
+			sum(click_count),
+			sum(25viewed_count),
+			sum(50viewed_count),
+			sum(75viewed_count),
+			sum(100viewed_count)
+			FROM
+			zz__yashi_cgn_data
+			GROUP BY campaign_id'
+		);
+
+		$statement->execute();
+		return $statement->fetchAll();
+	}
 }

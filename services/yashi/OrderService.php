@@ -75,4 +75,41 @@ class OrderService
             '100viewed_count' => $viewedCount100,
         ]);
     }
+
+    /**
+	 * @throws \Exception 
+	 */
+    public function cleanDataForDay(string $day)
+    {
+        $statement = $this->connection->prepare(
+            "DELETE FROM zz__yashi_order_data
+            WHERE log_date = :log_date"
+        );
+
+        $statement->execute([
+            'log_date' => strtotime($day)
+        ]);
+    }
+
+    public function getSumsByCampaigns(): array
+	{
+		$statement = $this->connection->prepare(
+			'SELECT
+			zz__yashi_cgn.campaign_id,
+			sum(impression_count),
+			sum(click_count),
+			sum(25viewed_count),
+			sum(50viewed_count),
+			sum(75viewed_count),
+			sum(100viewed_count)
+			FROM
+			zz__yashi_order_data
+			INNER JOIN zz__yashi_order ON zz__yashi_order_data.order_id = zz__yashi_order.order_id
+			INNER JOIN zz__yashi_cgn ON zz__yashi_order.campaign_id = zz__yashi_cgn.campaign_id
+			GROUP BY zz__yashi_cgn.campaign_id'
+		);
+
+		$statement->execute();
+		return $statement->fetchAll();
+	}
 }
